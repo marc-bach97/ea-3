@@ -1,0 +1,267 @@
+<!DOCTYPE html5>
+<html>
+    <title>Farbig gefüllte 2D Geometrie </title>
+    <style>
+        #canvas{
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+    </style>
+<body onload="initDraw(20)">
+    <div style="text-align: center;">
+        <h3>Ändern Sie die Anzahl der Stacheln, um einen Stern zu zeichnen, oder nennen Sie ihn eine Sonne.</h3>
+        <label for ="number_of_spikes">Anzahl Spikes</label> 
+        <input type="number" name="number_of_spikes" id="number_of_spikes" min="10" max="200" step="2"  value="20" onchange="drawAgain()">
+        <p style="text-align:center ;">(gerade Zahlen zwischen 10 und 200)</p>
+        <label for ="color_1">lange Stachel farbe</label> 
+        <input type="color" name="color_1" id="color_1" value="#d53900" onchange="ChangeColor1(event)">
+        <label for ="color_2"> kurze Stachel farbe</label> 
+        <input type="color" name="color_2" id="color_2" value="#250ba9" onchange="ChangeColor2(event)">
+    </div>
+    
+    
+<canvas id="canvas" width="500" height="500"></canvas>
+<script>
+var prog
+var canvas = document.getElementById('canvas');
+var gl = canvas.getContext('experimental-webgl');
+gl.clearColor(1, 1, 1, 1);
+// Standardfarbe für Spikes
+var r1=0.82;
+var g1=0.22;
+var b1=0;
+var r2=0.144;
+var g2=0.042;
+var b2=0.66;
+
+// Wert von Farbe 1 ändern
+//durch 256 dividieren, da die RGB-Farbwerte zwischen 0 und 255 liegen
+function ChangeColor1(ev) {
+  const color = ev.target.value
+   r1 = parseInt(color.substr(1,2), 16)/256; // 
+   g1 = parseInt(color.substr(3,2), 16)/256;
+   b1 = parseInt(color.substr(5,2), 16)/256;
+   drawAgain();
+}
+
+//Wert von Farbe 2 ändern
+//durch 256 dividieren, da die RGB-Farbwerte zwischen 0 und 255 liegen
+function ChangeColor2(ev) {
+  const color = ev.target.value
+   r2 = parseInt(color.substr(1,2), 16)/256;
+   g2 = parseInt(color.substr(3,2), 16)/256;
+   b2 = parseInt(color.substr(5,2), 16)/256;
+   drawAgain();
+}
+// Diese Funktion ändert die Anzahl der Spikes und ruft die updateStar-Funktion auf
+function drawAgain() {
+  var spikes = document.getElementById("number_of_spikes").value;
+  if(spikes>200){
+    spikes=200;
+  }
+  if(spikes<10){
+    spikes=10;
+  }
+  updateStar(spikes);
+  
+}
+// Wird in der Funktion „getVertices“ verwendet 
+function rotateLeft(arr){
+    let first = arr.shift();
+    arr.push(first);
+    return arr;
+}
+
+// Diese Funktion erstellt ein Array für die Indizes 
+function getIndices(numberOfSpikes){
+    var indices=[];
+    for (i = 0; i < numberOfSpikes; i++) {
+        indices.push(i*3);
+        indices.push(i*3+1);
+        indices.push(i*3+2);
+    }
+    return indices;
+}
+
+// Diese Funktion erstellt ein Array von Farbwerten
+// Die kurze Spitze hat eine Farbe
+// Die langen Spikes haben Farbverlauf 
+function getColors(numberOfSpikes){
+    var colors=[];
+    for (i = 0; i < numberOfSpikes; i++) {
+
+        if(i % 2 == 0) {
+            colors.push(r1,g1,b1,1);
+            colors.push(r2,g2,b2,1);
+            colors.push(r1,g1,b1,1);
+        }else{
+            colors.push(r2,g2,b2,1);
+            colors.push(r2,g2,b2,1);
+            colors.push(r2,g2,b2,1);
+        }
+
+
+        
+    }
+    return colors;
+}
+
+// Diese Funktion generiert ein Array von Scheitelpunkten, um einen Stern zu zeichnen, 
+///sie erhält die Anzahl der Spitzen und generiert die erforderlichen Scheitelpunkte
+function getVertices(numberOfSpikes){
+    var rotation = Math.PI / 2 * 3;
+    var x = 0;
+    var y = 0;
+    var step = Math.PI / numberOfSpikes;
+    var vertices=[];
+
+    for (i = 0; i < numberOfSpikes; i++) {
+        x = 0 + Math.cos(rotation) * 0.3;
+        y = 0 + Math.sin(rotation) * 0.3;
+        rotation += step
+        vertices.push(x);
+        vertices.push(y);
+        vertices.push(x);
+        vertices.push(y);
+
+        x = 0 + Math.cos(rotation) * 0.9;
+        y = 0 + Math.sin(rotation) * 0.9;
+        if(i % 2 == 0) {
+            vertices.push(x);
+            vertices.push(y);
+        }else{
+            vertices.push(x/1.5);
+            vertices.push(y/1.5);
+        }
+        
+        rotation += step
+
+       
+    }
+    vertices=rotateLeft(vertices);
+    vertices=rotateLeft(vertices);
+
+
+    return vertices;
+}
+
+    // Diese Funktion initialisiert das Webgl-Objekt und zeichnet einen Stern mit 10 Zacken
+    function initDraw(spikes){
+    // Compile a vertex shader
+    var vsSource = ''+
+        'attribute vec2 pos;'+
+        'attribute vec4 col;'+
+        'varying vec4 color;'+
+        'void main(){'+
+        'color = col;'+
+        'gl_Position = vec4(pos,0, 1);'+
+        '}';
+    var vs = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vs, vsSource);
+    gl.compileShader(vs);
+
+    // Compile a fragment shader
+    fsSouce = 'precision mediump float;'+
+    'varying vec4 color;'+
+    'void main() {'+
+    'gl_FragColor = color;'+
+    '}';
+
+    var fs = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fs, fsSouce);
+    gl.compileShader(fs);
+
+    // Link together into a program
+    prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    gl.useProgram(prog);
+
+    // Load vertex data into a buffer
+    var vertices = new Float32Array(getVertices(spikes));
+    // Load color data into a buffer
+    var colors = new Float32Array(getColors(spikes));
+    // Load indices data into a buffer
+    var indices = new Uint16Array(getIndices(spikes));
+
+    var vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    // Bind vertex buffer to attribute variable
+    var posAttrib = gl.getAttribLocation(prog, 'pos');
+    gl.vertexAttribPointer(posAttrib, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(posAttrib);
+
+    // Setup color vertex buffer object.
+    var vboCol = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vboCol);
+    gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+
+    // Bind color  buffer to attribute variable.
+    var colAttrib = gl.getAttribLocation(prog, 'col');
+    gl.vertexAttribPointer(colAttrib, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(colAttrib);
+
+    // Setup index buffer object.
+    var ibo = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices,gl.STATIC_DRAW);
+    ibo.numerOfEmements = indices.length;
+
+    // Clear framebuffer and render primitives.
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.drawElements(gl.TRIANGLES, ibo.numerOfEmements,gl.UNSIGNED_SHORT, 0); 
+
+}
+
+// Diese Funktion aktualisiert die Leinwand und zeichnet einen neuen Stern mit den erforderlichen Stacheln
+//und gewünschte Farben
+function updateStar(spikes){
+
+// Load vertex data into a buffer
+var vertices = new Float32Array(getVertices(spikes));
+    // Load color data into a buffer
+    var colors = new Float32Array(getColors(spikes));
+    // Load indices data into a buffer
+    var indices = new Uint16Array(getIndices(spikes));
+
+    var vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    // Bind vertex buffer to attribute variable
+    var posAttrib = gl.getAttribLocation(prog, 'pos');
+    gl.vertexAttribPointer(posAttrib, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(posAttrib);
+
+    // Setup color vertex buffer object.
+    var vboCol = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vboCol);
+    gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+
+    // Bind color  buffer to attribute variable.
+    var colAttrib = gl.getAttribLocation(prog, 'col');
+    gl.vertexAttribPointer(colAttrib, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(colAttrib);
+
+    // Setup index buffer object.
+    var ibo = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices,gl.STATIC_DRAW);
+    ibo.numerOfEmements = indices.length;
+
+    // Clear framebuffer and render primitives.
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.drawElements(gl.TRIANGLES, ibo.numerOfEmements,gl.UNSIGNED_SHORT, 0); 
+
+}
+
+</script>
+</body>
+</html>
